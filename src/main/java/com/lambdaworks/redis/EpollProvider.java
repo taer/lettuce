@@ -25,6 +25,7 @@ public class EpollProvider {
     public final static Class<EventLoopGroup> epollEventLoopGroupClass;
     public final static Class<Channel> epollDomainSocketChannelClass;
     public final static Class<SocketAddress> domainSocketAddressClass;
+
     static {
 
         epollEventLoopGroupClass = getClass("io.netty.channel.epoll.EpollEventLoopGroup");
@@ -43,10 +44,19 @@ public class EpollProvider {
      * @return instance of {@literal className} or null
      */
     private static <T> Class<T> getClass(String className) {
+
+        // Maven Shade plugin also transforms strings containg class names so we
+        // need to revert that here.
+        String unShadedClassName = className;
+        String prefix = "com.lambdaworks.";
+        if (className.startsWith(prefix)) {
+            unShadedClassName = className.substring(prefix.length());
+        }
+
         try {
-            return (Class) JavaRuntime.forName(className);
+            return (Class) JavaRuntime.forName(unShadedClassName);
         } catch (ClassNotFoundException e) {
-            logger.debug("Cannot load class " + className, e);
+            logger.debug("Cannot load class " + unShadedClassName, e);
         }
         return null;
     }
@@ -73,8 +83,8 @@ public class EpollProvider {
     public static EventLoopGroup newEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
 
         try {
-            Constructor<EventLoopGroup> constructor = epollEventLoopGroupClass
-                    .getConstructor(Integer.TYPE, ThreadFactory.class);
+            Constructor<EventLoopGroup> constructor = epollEventLoopGroupClass.getConstructor(Integer.TYPE,
+                    ThreadFactory.class);
             return constructor.newInstance(nThreads, threadFactory);
         } catch (Exception e) {
             throw new IllegalStateException(e);
